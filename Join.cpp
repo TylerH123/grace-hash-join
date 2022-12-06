@@ -27,7 +27,7 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 			Page* bufferPage = mem->mem_page(index);
 			if (bufferPage->full()) {
 				uint disk_page_id = mem->flushToDisk(disk, index);
-				partitions[index].add_left_rel_page(disk_page_id);
+				partitions[index - 1].add_left_rel_page(disk_page_id);
 			}
 			bufferPage->loadRecord(rec);
 		}
@@ -53,7 +53,7 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 			Page* bufferPage = mem->mem_page(index);
 			if (bufferPage->full()) {
 				uint disk_page_id = mem->flushToDisk(disk, index);
-				partitions[index].add_right_rel_page(disk_page_id);
+				partitions[index - 1].add_right_rel_page(disk_page_id);
 			}
 			bufferPage->loadRecord(rec);
 		}
