@@ -19,17 +19,17 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 		mem->loadFromDisk(disk, i, 0);
 		Page* page = mem->mem_page(0);
 		for (uint r = 0; r < page->size(); ++r) {
-			Record rec_s = page->get_record(r);
+			Record rec = page->get_record(r);
 			uint index = 1
-			        + rec_s.partition_hash()
+			        + rec.partition_hash()
 			                % (MEM_SIZE_IN_PAGE - 1); // bucket index
 
-			Page* write_page = mem->mem_page(index);
-			if (write_page->full()) {
+			Page* bufferPage = mem->mem_page(index);
+			if (bufferPage->full()) {
 				uint disk_page_id = mem->flushToDisk(disk, index);
 				partitions[index].add_left_rel_page(disk_page_id);
 			}
-			write_page->loadRecord(rec_s);
+			bufferPage->loadRecord(rec);
 		}
 	}
 
@@ -37,7 +37,7 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 		Page* page = mem->mem_page(i);
 		if (!page->empty()) {
 			uint disk_page_id = mem->flushToDisk(disk, i);
-			partitions[i].add_left_rel_page(disk_page_id);
+			partitions[i - 1].add_left_rel_page(disk_page_id);
 		}
 	}
 
@@ -45,17 +45,17 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 		mem->loadFromDisk(disk, i, 0);
 		Page* page = mem->mem_page(0);
 		for (uint r = 0; r < page->size(); ++r) {
-			Record rec_s = page->get_record(r);
+			Record rec = page->get_record(r);
 			uint index = 1
-			        + rec_s.partition_hash()
+			        + rec.partition_hash()
 			                % (MEM_SIZE_IN_PAGE - 1); // bucket index
 
-			Page* write_page = mem->mem_page(index);
-			if (write_page->full()) {
+			Page* bufferPage = mem->mem_page(index);
+			if (bufferPage->full()) {
 				uint disk_page_id = mem->flushToDisk(disk, index);
 				partitions[index].add_right_rel_page(disk_page_id);
 			}
-			write_page->loadRecord(rec_s);
+			bufferPage->loadRecord(rec);
 		}
 	}
 
@@ -63,7 +63,7 @@ vector<Bucket> partition(Disk* disk, Mem* mem, pair<uint, uint> left_rel,
 		Page* page = mem->mem_page(i);
 		if (!page->empty()) {
 			uint disk_page_id = mem->flushToDisk(disk, i);
-			partitions[i].add_right_rel_page(disk_page_id);
+			partitions[i - 1].add_right_rel_page(disk_page_id);
 		}
 	}
 
@@ -79,8 +79,7 @@ vector<uint> probe(Disk* disk, Mem* mem, vector<Bucket>& partitions) {
 	vector<uint> disk_pages; // placeholder
 
 	Page* write_page = mem->mem_page(MEM_SIZE_IN_PAGE - 1);
-	for (uint i = 0; i < partitions.size(); ++i) {
-		Bucket& b = partitions[i];
+	for (auto& b : partitions) {
 		vector<uint> left_disk_ids = b.get_left_rel();
 
 		for (uint i : left_disk_ids) {
