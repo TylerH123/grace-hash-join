@@ -78,24 +78,29 @@ vector<uint> probe(Disk* disk, Mem* mem, vector<Bucket>& partitions) {
 	// TODO: implement probe phase
 	vector<uint> disk_pages; // placeholder
 
-	Page* write_page = mem->mem_page(MEM_SIZE_IN_PAGE - 1);
+	mem->reset();
+	Page* outputBuffer = mem->mem_page(MEM_SIZE_IN_PAGE - 1);
+
 	for (auto& b : partitions) {
 		vector<uint> left_disk_ids = b.get_left_rel();
+		vector<uint> right_disk_ids = b.get_right_rel();
+
+		if (b.num_left_rel_record > b.num_right_rel_record)
+			swap(left_disk_ids, right_disk_ids);
 
 		for (uint i : left_disk_ids) {
 			mem->loadFromDisk(disk, i, 0);
 			Page* input = mem->mem_page(0);
 			for (uint r = 0; r < input->size(); ++r) {
-				Record rec_s = input->get_record(r);
+				Record rec = input->get_record(r);
 				uint index = 1
-				        + rec_s.probe_hash()
+				        + rec.probe_hash()
 				                % (MEM_SIZE_IN_PAGE - 2); // bucket index
-				Page* bucket = mem->mem_page(index);
-				bucket->loadRecord(rec_s);
+				Page* bufferPage = mem->mem_page(index);
+				bufferPage->loadRecord(rec);
 			}
 		}
 
-		vector<uint> right_disk_ids = b.get_right_rel();
 		for (uint i : right_disk_ids) {
 			mem->loadFromDisk(disk, i, 0);
 			Page* input = mem->mem_page(0);
@@ -104,27 +109,26 @@ vector<uint> probe(Disk* disk, Mem* mem, vector<Bucket>& partitions) {
 				uint index = 1
 				        + recS.probe_hash()
 				                % (MEM_SIZE_IN_PAGE - 2); // bucket index
-				Page* bucket = mem->mem_page(index);
-				for (uint r = 0; r < bucket->size(); ++r) {
-					Record recR = bucket->get_record(r);
+				Page* bufferPage = mem->mem_page(index);
+				for (uint r = 0; r < bufferPage->size(); ++r) {
+					Record recR = bufferPage->get_record(r);
 					if (recR == recS) {
-						if (write_page->full()) {
+						if (outputBuffer->full()) {
+							outputBuffer->print();
 							uint disk_page_id = mem->flushToDisk(
 							        disk, MEM_SIZE_IN_PAGE - 1);
 							disk_pages.push_back(disk_page_id);
-							write_page->reset();
 						}
-						write_page->loadPair(recR, recS);
+						outputBuffer->loadPair(recR, recS);
 					}
 				}
 			}
 		}
-	}
-
-	if (!write_page->empty()) {
-		uint disk_page_id = mem->flushToDisk(disk, MEM_SIZE_IN_PAGE - 1);
-		disk_pages.push_back(disk_page_id);
-		write_page->reset();
+		if (!outputBuffer->empty()) {
+			uint disk_page_id = mem->flushToDisk(disk, MEM_SIZE_IN_PAGE - 1);
+			disk_pages.push_back(disk_page_id);
+		}
+		mem->reset();
 	}
 
 	return disk_pages;
