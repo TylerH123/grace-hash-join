@@ -114,7 +114,6 @@ vector<uint> probe(Disk* disk, Mem* mem, vector<Bucket>& partitions) {
 					Record recR = bufferPage->get_record(r);
 					if (recR == recS) {
 						if (outputBuffer->full()) {
-							outputBuffer->print();
 							uint disk_page_id = mem->flushToDisk(
 							        disk, MEM_SIZE_IN_PAGE - 1);
 							disk_pages.push_back(disk_page_id);
@@ -124,11 +123,14 @@ vector<uint> probe(Disk* disk, Mem* mem, vector<Bucket>& partitions) {
 				}
 			}
 		}
-		if (!outputBuffer->empty()) {
-			uint disk_page_id = mem->flushToDisk(disk, MEM_SIZE_IN_PAGE - 1);
-			disk_pages.push_back(disk_page_id);
+		for (uint i = 1; i < MEM_SIZE_IN_PAGE - 1; ++i) {
+			Page* page = mem->mem_page(i);
+			page->reset();
 		}
-		mem->reset();
+	}
+	if (!outputBuffer->empty()) {
+		uint disk_page_id = mem->flushToDisk(disk, MEM_SIZE_IN_PAGE - 1);
+		disk_pages.push_back(disk_page_id);
 	}
 
 	return disk_pages;
