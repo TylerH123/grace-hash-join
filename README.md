@@ -1,1 +1,1 @@
-# p4-grace-hash
+# Grace Hash Join
